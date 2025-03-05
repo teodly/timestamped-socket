@@ -62,12 +62,21 @@ pub enum GeneralTimestampMode {
 pub enum InterfaceTimestampMode {
     HardwareAll,
     HardwareRecv,
-    HardwarePTPAll,
-    HardwarePTPRecv,
+    HardwarePTPv2All,
+    HardwarePTPv2Recv,
+    HardwarePTPv1All,
+    HardwarePTPv1Recv,
     SoftwareAll,
     SoftwareRecv,
     #[default]
     None,
+}
+
+// for backward compatibility before PTP versioning was introduced to this crate:
+#[allow(non_upper_case_globals)]
+impl InterfaceTimestampMode {
+    pub const HardwarePTPAll: Self = Self::HardwarePTPv2All;
+    pub const HardwarePTPRecv: Self = Self::HardwarePTPv2Recv;
 }
 
 impl From<GeneralTimestampMode> for InterfaceTimestampMode {
@@ -89,7 +98,9 @@ fn select_timestamp(
 
     match mode {
         SoftwareAll | SoftwareRecv => software,
-        HardwareAll | HardwareRecv | HardwarePTPAll | HardwarePTPRecv => hardware,
+        HardwareAll | HardwareRecv |
+        HardwarePTPv2All | HardwarePTPv2Recv |
+        HardwarePTPv1All | HardwarePTPv1Recv => hardware,
         None => Option::None,
     }
 }

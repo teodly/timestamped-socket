@@ -121,7 +121,8 @@ pub(super) fn configure_timestamping(
     }
 
     let options = match mode {
-        InterfaceTimestampMode::HardwareAll | InterfaceTimestampMode::HardwarePTPAll => {
+        InterfaceTimestampMode::HardwareAll |
+        InterfaceTimestampMode::HardwarePTPv2All | InterfaceTimestampMode::HardwarePTPv1All => {
             libc::SOF_TIMESTAMPING_RAW_HARDWARE
                 | libc::SOF_TIMESTAMPING_TX_SOFTWARE
                 | libc::SOF_TIMESTAMPING_RX_HARDWARE
@@ -132,7 +133,8 @@ pub(super) fn configure_timestamping(
                     .map(|_| SOF_TIMESTAMPING_BIND_PHC)
                     .unwrap_or_default()
         }
-        InterfaceTimestampMode::HardwareRecv | InterfaceTimestampMode::HardwarePTPRecv => {
+        InterfaceTimestampMode::HardwareRecv |
+        InterfaceTimestampMode::HardwarePTPv2Recv | InterfaceTimestampMode::HardwarePTPv1Recv => {
             libc::SOF_TIMESTAMPING_RAW_HARDWARE
                 | libc::SOF_TIMESTAMPING_RX_HARDWARE
                 | bind_phc
@@ -166,12 +168,25 @@ fn driver_enable_timestamping(interface: InterfaceName, socket: &RawSocket, laye
         InterfaceTimestampMode::HardwareAll | InterfaceTimestampMode::HardwareRecv => {
             socket.driver_enable_hardware_timestamping(interface, libc::HWTSTAMP_FILTER_ALL as _)
         }
-        InterfaceTimestampMode::HardwarePTPAll | InterfaceTimestampMode::HardwarePTPRecv => socket
+        InterfaceTimestampMode::HardwarePTPv2All | InterfaceTimestampMode::HardwarePTPv2Recv => socket
             .driver_enable_hardware_timestamping(
                 interface,
                 match layer {
                     NetworkLayer::L4 => libc::HWTSTAMP_FILTER_PTP_V2_L4_EVENT,
                     NetworkLayer::L2 => libc::HWTSTAMP_FILTER_PTP_V2_L2_EVENT,
+                } as _,
+            ),
+        InterfaceTimestampMode::HardwarePTPv1All | InterfaceTimestampMode::HardwarePTPv1Recv => socket
+            .driver_enable_hardware_timestamping(
+                interface,
+                match layer {
+                    NetworkLayer::L4 => libc::HWTSTAMP_FILTER_PTP_V1_L4_EVENT,
+                    /*
+                        Behaving in line with Linux:
+                        'Drivers are free to use a more permissive configuration than the requested configuration'
+                          - https://www.kernel.org/doc/html/latest/networking/timestamping.html
+                    */
+                    NetworkLayer::L2 => libc::HWTSTAMP_FILTER_ALL,
                 } as _,
             ),
         InterfaceTimestampMode::None
