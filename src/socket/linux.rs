@@ -155,6 +155,33 @@ pub(super) fn configure_timestamping(
     socket.so_timestamping(options, bind_phc.unwrap_or_default())
 }
 
+
+#[derive(Clone, Copy)]
+enum NetworkLayer {
+    L4,
+    L2
+}
+fn driver_enable_timestamping(interface: InterfaceName, socket: &RawSocket, layer: NetworkLayer, timestamping: InterfaceTimestampMode) -> std::io::Result<()> {
+    match timestamping {
+        InterfaceTimestampMode::HardwareAll | InterfaceTimestampMode::HardwareRecv => {
+            socket.driver_enable_hardware_timestamping(interface, libc::HWTSTAMP_FILTER_ALL as _)
+        }
+        InterfaceTimestampMode::HardwarePTPAll | InterfaceTimestampMode::HardwarePTPRecv => socket
+            .driver_enable_hardware_timestamping(
+                interface,
+                match layer {
+                    NetworkLayer::L4 => libc::HWTSTAMP_FILTER_PTP_V2_L4_EVENT,
+                    NetworkLayer::L2 => libc::HWTSTAMP_FILTER_PTP_V2_L2_EVENT,
+                } as _,
+            ),
+        InterfaceTimestampMode::None
+        | InterfaceTimestampMode::SoftwareAll
+        | InterfaceTimestampMode::SoftwareRecv => {
+            Ok(())
+        }
+    }
+}
+
 pub fn open_interface_udp(
     interface: InterfaceName,
     port: u16,
@@ -170,19 +197,7 @@ pub fn open_interface_udp(
     socket.ipv6_multicast_if(interface)?;
     socket.ipv6_multicast_loop(false)?;
     configure_timestamping(&socket, Some(interface), timestamping, bind_phc)?;
-    match timestamping {
-        InterfaceTimestampMode::HardwareAll | InterfaceTimestampMode::HardwareRecv => {
-            socket.driver_enable_hardware_timestamping(interface, libc::HWTSTAMP_FILTER_ALL as _)?
-        }
-        InterfaceTimestampMode::HardwarePTPAll | InterfaceTimestampMode::HardwarePTPRecv => socket
-            .driver_enable_hardware_timestamping(
-                interface,
-                libc::HWTSTAMP_FILTER_PTP_V2_L4_EVENT as _,
-            )?,
-        InterfaceTimestampMode::None
-        | InterfaceTimestampMode::SoftwareAll
-        | InterfaceTimestampMode::SoftwareRecv => {}
-    }
+    driver_enable_timestamping(interface, &socket, NetworkLayer::L4, timestamping)?;
     socket.set_nonblocking(true)?;
 
     Ok(Socket {
@@ -208,19 +223,7 @@ pub fn open_interface_udp4(
     socket.ip_multicast_if(interface)?;
     socket.ip_multicast_loop(false)?;
     configure_timestamping(&socket, Some(interface), timestamping, bind_phc)?;
-    match timestamping {
-        InterfaceTimestampMode::HardwareAll | InterfaceTimestampMode::HardwareRecv => {
-            socket.driver_enable_hardware_timestamping(interface, libc::HWTSTAMP_FILTER_ALL as _)?
-        }
-        InterfaceTimestampMode::HardwarePTPAll | InterfaceTimestampMode::HardwarePTPRecv => socket
-            .driver_enable_hardware_timestamping(
-                interface,
-                libc::HWTSTAMP_FILTER_PTP_V2_L4_EVENT as _,
-            )?,
-        InterfaceTimestampMode::None
-        | InterfaceTimestampMode::SoftwareAll
-        | InterfaceTimestampMode::SoftwareRecv => {}
-    }
+    driver_enable_timestamping(interface, &socket, NetworkLayer::L4, timestamping)?;
     socket.set_nonblocking(true)?;
 
     Ok(Socket {
@@ -247,19 +250,7 @@ pub fn open_interface_udp6(
     socket.ipv6_multicast_if(interface)?;
     socket.ipv6_multicast_loop(false)?;
     configure_timestamping(&socket, Some(interface), timestamping, bind_phc)?;
-    match timestamping {
-        InterfaceTimestampMode::HardwareAll | InterfaceTimestampMode::HardwareRecv => {
-            socket.driver_enable_hardware_timestamping(interface, libc::HWTSTAMP_FILTER_ALL as _)?
-        }
-        InterfaceTimestampMode::HardwarePTPAll | InterfaceTimestampMode::HardwarePTPRecv => socket
-            .driver_enable_hardware_timestamping(
-                interface,
-                libc::HWTSTAMP_FILTER_PTP_V2_L4_EVENT as _,
-            )?,
-        InterfaceTimestampMode::None
-        | InterfaceTimestampMode::SoftwareAll
-        | InterfaceTimestampMode::SoftwareRecv => {}
-    }
+    driver_enable_timestamping(interface, &socket, NetworkLayer::L4, timestamping)?;
     socket.set_nonblocking(true)?;
 
     Ok(Socket {
@@ -293,19 +284,7 @@ pub fn open_interface_ethernet(
         .to_sockaddr(PrivateToken),
     )?;
     configure_timestamping(&socket, Some(interface), timestamping, bind_phc)?;
-    match timestamping {
-        InterfaceTimestampMode::HardwareAll | InterfaceTimestampMode::HardwareRecv => {
-            socket.driver_enable_hardware_timestamping(interface, libc::HWTSTAMP_FILTER_ALL as _)?
-        }
-        InterfaceTimestampMode::HardwarePTPAll | InterfaceTimestampMode::HardwarePTPRecv => socket
-            .driver_enable_hardware_timestamping(
-                interface,
-                libc::HWTSTAMP_FILTER_PTP_V2_L2_EVENT as _,
-            )?,
-        InterfaceTimestampMode::None
-        | InterfaceTimestampMode::SoftwareAll
-        | InterfaceTimestampMode::SoftwareRecv => {}
-    }
+    driver_enable_timestamping(interface, &socket, NetworkLayer::L2, timestamping)?;
     socket.set_nonblocking(true)?;
 
     Ok(Socket {
