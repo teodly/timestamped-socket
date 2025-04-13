@@ -197,7 +197,7 @@ impl<A: NetworkAddress> Socket<A, Open> {
 
         if matches!(
             self.timestamp_mode,
-            InterfaceTimestampMode::HardwarePTPAll | InterfaceTimestampMode::SoftwareAll
+            InterfaceTimestampMode::HardwarePTPv2All | InterfaceTimestampMode::HardwarePTPv1All | InterfaceTimestampMode::SoftwareAll
         ) {
             #[cfg(target_os = "linux")]
             {
@@ -237,7 +237,7 @@ impl<A: NetworkAddress> Socket<A, Connected> {
 
         if matches!(
             self.timestamp_mode,
-            InterfaceTimestampMode::HardwarePTPAll | InterfaceTimestampMode::SoftwareAll
+            InterfaceTimestampMode::HardwarePTPv2All | InterfaceTimestampMode::HardwarePTPv1All | InterfaceTimestampMode::SoftwareAll
         ) {
             #[cfg(target_os = "linux")]
             {
